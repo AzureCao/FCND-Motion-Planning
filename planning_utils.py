@@ -1,6 +1,7 @@
 from enum import Enum
 from queue import PriorityQueue
 import numpy as np
+from udacidrone.frame_utils import global_to_local, local_to_global
 
 
 def create_grid(data, drone_altitude, safety_distance):
@@ -52,9 +53,13 @@ class Action(Enum):
     """
 
     WEST = (0, -1, 1)
-    EAST = (0, 1, 1)
-    NORTH = (-1, 0, 1)
+    SOUTHWEST = (1, -1, np.sqrt(2))
     SOUTH = (1, 0, 1)
+    SOUTHEAST = (1, 1, np.sqrt(2))
+    EAST = (0, 1, 1)
+    NORTHEAST = (-1, 1, np.sqrt(2))
+    NORTH = (-1, 0, 1)
+    NORTHWEST = (-1, -1, np.sqrt(2))
 
     @property
     def cost(self):
@@ -78,8 +83,16 @@ def valid_actions(grid, current_node):
 
     if x - 1 < 0 or grid[x - 1, y] == 1:
         valid_actions.remove(Action.NORTH)
+    if x - 1 < 0 or y - 1 < 0 or grid[x - 1, y - 1] == 1:
+        valid_actions.remove(Action.NORTHWEST)
+    if x - 1 < 0 or y + 1 > m or grid[x - 1, y + 1] == 1:
+        valid_actions.remove(Action.NORTHEAST)
     if x + 1 > n or grid[x + 1, y] == 1:
         valid_actions.remove(Action.SOUTH)
+    if x + 1 > n or y - 1 < 0 or grid[x + 1, y - 1] == 1:
+        valid_actions.remove(Action.SOUTHWEST)
+    if x + 1 > n or y + 1 > m or grid[x + 1, y + 1] == 1:
+        valid_actions.remove(Action.SOUTHEAST)
     if y - 1 < 0 or grid[x, y - 1] == 1:
         valid_actions.remove(Action.WEST)
     if y + 1 > m or grid[x, y + 1] == 1:
@@ -102,6 +115,7 @@ def a_star(grid, h, start, goal):
     while not queue.empty():
         item = queue.get()
         current_node = item[1]
+        # print(current_node)
         if current_node == start:
             current_cost = 0.0
         else:              
@@ -144,3 +158,18 @@ def a_star(grid, h, start, goal):
 def heuristic(position, goal_position):
     return np.linalg.norm(np.array(position) - np.array(goal_position))
 
+
+def get_lonlat_limits(north_min, north_max, east_min, east_max, global_home):
+    southwest = (north_min, east_min, 0)
+    southeast = (north_min, east_max, 0)
+    northeast = (north_max, east_max, 0)
+    northwest = (north_max, east_min, 0)
+    global_limits = [local_to_global(c, global_home) for c in [southwest, southeast, northeast, northwest]]
+    dummy = np.vstack((np.min(global_limits, 0), np.max(global_limits, 0))).T
+    lon_min, lon_max = dummy[0]
+    lat_min, lat_max = dummy[1]
+    return lon_min, lon_max, lat_min, lat_max
+
+# def find_closesst_feasible_grid(grid_goal, grid):
+#     for c in grid:
+#         if 
